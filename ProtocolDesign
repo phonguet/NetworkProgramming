@@ -1,0 +1,43 @@
+Protocol Design For Peer-to-peer Model
+1. Goals
+- Giao thức cần truyền tin nhanh
+- Cần truyền tin tin cậy
+- Cần mã hóa
+- Các bên tham gia: 1 server trung gian vs nhiều end host và các host truyền tin cho nhau
+- Không giới hạn băng thông và kết nối
+- Cần duy trì phiên làm việc
+
+2. Mô hình truyền tin
+Mô hình lai: gồm 1 server trung gian lưu thông tin về các host, xử lí request và response về các host. Các host hoạt động theo mô hình peer to peer, có thể kết nối và truyền tin với nhiều host khác.
+
+3. Mô tả các loại gói tin
+- package hostInfo : mỗi khi client kết nối với index server thì nó sẽ gửi thông tin của mình cho server gồm HostName, IPAddress, Port, ListFile.
+- package fileInfo : sau khi nhận được request của client thì server sẽ gửi lại cho client danh sách file có trong các host.
+- package fileRequest : gửi cho các host có chứa file cần tải, gửi lại server để cập nhật danh sách file khi trạng thái Update = true.
+- package fileData : dữ liệu của file
+
+4. Định dạng các loại gói tin
+- package hostInfo {
+		    "HostName":  ,
+		    "IPAddress": ,
+		    "Port":      ,
+	 	    "ListFile":
+		   } 
+
+- package fileInfo {
+		    "FileName":  ,
+		    "ListHost":
+		   }
+
+- package fileRequest {
+			"FileName":   ,
+			"FileSize":   ,
+			"Update":
+		      }
+
+
+5. Mô tả chương trình
+- Client kết nối đến index server thì nó sẽ gửi package hostInfo cho server
+- Client gửi pkg fileRequest đến server để lấy thông tin các host chứa file và được server gửi về trong pkg fileInfo.
+- Sau khi đã nhận được danh sách host rồi thì client gửi yêu cầu đến 1 trong các host để tải file. Nếu ListHost = null thì client hiển thị thông báo "File Not Found". Nếu ListHost != null thì sau khi tải thành công thì sẽ 
+- Nếu 1 client nào đó ngắt kết nối thì n sẽ gửi tên file QUIT đến server và server xóa thông tin của host này đi.
