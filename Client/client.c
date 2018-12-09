@@ -11,6 +11,8 @@
 #include<sys/types.h>
 #include<dirent.h>
 
+char * fileName ;
+
 void error(const char * msg)
 {
 	perror(msg);
@@ -45,10 +47,40 @@ char * getListFile()
 	return temp;
 }
 
+void sendHostInfoToServer(int sock)
+{
+	struct HostInfo hostInfo;
+    char * temp = (char*) malloc(100 * sizeof(char *));     // hostInfo Data
+	hostInfo.hostName = (char*) malloc(100 * sizeof(char *));
+	hostInfo.hostIPAddress = (char*) malloc(100 * sizeof(char *));
+	hostInfo.listFile = (char*) malloc(100 * sizeof(char *));
+    printf("Host Name: ");
+    scanf("%s", hostInfo.hostName);
+	temp = strcat(strcat(temp, "\r"), hostInfo.hostName);
+    printf("Host IP Address: ");
+    scanf("%s", hostInfo.hostIPAddress);
+	temp = strcat(strcat(temp, ","), hostInfo.hostIPAddress);
+	hostInfo.listFile = getListFile();
+	temp = strcat(strcat(temp, ","), hostInfo.listFile);
+	int dataLength = strlen(temp);
+	printf("%d\n", dataLength);
+	//write(sockfd, dataLength, sizeof(dataLength));
+	write(sock, temp, dataLength);
+	printf("%s\n",temp);
+}
+
+void downloadFile(int sock)
+{
+	printf("Input file name to download: ");
+	scanf("%s", fileName);
+	write(sock, fileName, sizeof(fileName));
+}
+
 int main()
 {
-    int sockfd;
+    int sockfd, connfd;
     struct sockaddr_in serv_addr;
+	fileName = (char*) malloc(100 * sizeof(char*));
 
     // socket()
 	sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -65,29 +97,13 @@ int main()
 	serv_addr.sin_port = htons(9090);
 	serv_addr.sin_addr.s_addr = inet_addr(serv_IPAddr);
 
-	if(connect(sockfd, (struct sockaddr*) &serv_addr, sizeof(serv_addr)) < 0)
+	if((connfd = connect(sockfd, (struct sockaddr*) &serv_addr, sizeof(serv_addr))) < 0)
 		error("Error Connecting");	
     else
     {
         printf("Connected Success !\n");
-		struct HostInfo hostInfo;
-        char * temp = (char*) malloc(100 * sizeof(char *));     // hostInfo Data
-		hostInfo.hostName = (char*) malloc(100 * sizeof(char *));
-		hostInfo.hostIPAddress = (char*) malloc(100 * sizeof(char *));
-		hostInfo.listFile = (char*) malloc(100 * sizeof(char *));
-        printf("Host Name: ");
-        scanf("%s", hostInfo.hostName);
-		temp = strcat(strcat(temp, "\r"), hostInfo.hostName);
-        printf("Host IP Address: ");
-        scanf("%s", hostInfo.hostIPAddress);
-		temp = strcat(strcat(temp, ","), hostInfo.hostIPAddress);
-		hostInfo.listFile = getListFile();
-		temp = strcat(strcat(temp, ","), hostInfo.listFile);
-		int dataLength = strlen(temp);
-		printf("%d\n", dataLength);
-		//write(sockfd, dataLength, sizeof(dataLength));
-		write(sockfd, temp, dataLength);
-		printf(temp);
+		sendHostInfoToServer(sockfd);
+		downloadFile(sockfd);
     }
     
 	// while(1)

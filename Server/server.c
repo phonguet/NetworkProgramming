@@ -37,10 +37,7 @@ struct HostInfo getHostInfo(int sock)
     char buffer_recv[8192];
 	char * dataHost = (char*) malloc(100 * sizeof(char *));
     bzero(buffer_recv, sizeof(buffer_recv));
-	while(read(sock, buffer_recv, sizeof(buffer_recv)) > 0)
-	{
-
-	}
+	read(sock, buffer_recv, sizeof(buffer_recv));
 	hostInfo.hostName = strtok(buffer_recv, ",");
 	hostInfo.hostIPAddress= strtok(NULL, ",");
 	hostInfo.listFile = strtok(NULL, ",");
@@ -48,9 +45,13 @@ struct HostInfo getHostInfo(int sock)
 	return hostInfo;
 }
 
-void responseToHost()
+void responseToHost(int sock)
 {
-
+	struct HostInfo * data = DATAHOST;
+	char * listHost; // list host include file name download
+	char * fileName;
+	read(sock, fileName, sizeof(fileName));
+	printf("%s\n", fileName);
 }
 
 static void * doit(void * arg)
@@ -62,19 +63,12 @@ static void * doit(void * arg)
     free(arg);
     pthread_detach(pthread_self());
 	struct HostInfo hostInfo =  getHostInfo(connfd);
-	if(countHost == 1)
-	{
-		DATAHOST = &hostInfo;
-		printf("%s\n",DATAHOST->hostName);
-	}
-	else
-	{
-		*DATAHOST++ = hostInfo;
-		printf("%s\n",DATAHOST->hostName);
-	}
-
+	DATAHOST = &hostInfo;
+	printf("%s\n",DATAHOST->hostName);
+	*DATAHOST++;
+	responseToHost(connfd);
     close(connfd);
-	countHost--;
+	//countHost--;
     return NULL;
 }
 
