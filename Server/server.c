@@ -11,7 +11,16 @@
 #include<pthread.h>
 //#include<libr/r_util/r_json.h>
 
-char * DATAHOST;
+// Information of Host connected to server
+typedef struct HostInfo
+{
+    char * hostName;
+    char * hostIPAddress;
+    char * listFile;
+};
+
+static int countHost = 0;
+struct HostInfo * DATAHOST;
 
 void error(const char * msg)
 {
@@ -22,20 +31,21 @@ void error(const char * msg)
 // server có 1 socket lắng nghe, mỗi khi client kết nối đến thì
 // server sẽ tạo ra 1 luồng để xử lí yêu cầu của client
 
-char * getHostInfo(int sock)
+struct HostInfo getHostInfo(int sock)
 {
+	struct HostInfo hostInfo;
     char buffer_recv[8192];
-	//int dataLength = 0;
-	//read(sock, &dataLength, sizeof(dataLength));
-	//printf("Data Length: %d\n", dataLength);
 	char * dataHost = (char*) malloc(100 * sizeof(char *));
     bzero(buffer_recv, sizeof(buffer_recv));
 	while(read(sock, buffer_recv, sizeof(buffer_recv)) > 0)
 	{
-		dataHost = strcat(strcat(dataHost, "\n"), buffer_recv);
+
 	}
-	printf(dataHost);
-	return dataHost;
+	hostInfo.hostName = strtok(buffer_recv, ",");
+	hostInfo.hostIPAddress= strtok(NULL, ",");
+	hostInfo.listFile = strtok(NULL, ",");
+	printf("%s\n",hostInfo.listFile);
+	return hostInfo;
 }
 
 void responseToHost()
@@ -46,14 +56,25 @@ void responseToHost()
 static void * doit(void * arg)
 {
     printf("\nThread ID: %d is created.\n", *(int*)arg);
+	countHost++;
     int connfd;
     connfd = *((int*)arg);
     free(arg);
     pthread_detach(pthread_self());
-	//DATAHOST = getHostInfo(connfd);
-	DATAHOST = strcat(strcat(DATAHOST, "\n"), getHostInfo(connfd));
-	//printf(DATAHOST);
+	struct HostInfo hostInfo =  getHostInfo(connfd);
+	if(countHost == 1)
+	{
+		DATAHOST = &hostInfo;
+		printf("%s\n",DATAHOST->hostName);
+	}
+	else
+	{
+		*DATAHOST++ = hostInfo;
+		printf("%s\n",DATAHOST->hostName);
+	}
+
     close(connfd);
+	countHost--;
     return NULL;
 }
 
@@ -64,7 +85,6 @@ int main()
 	socklen_t cli_len;
 	pthread_t tid;
 	int *iptr;
-	DATAHOST = (char *) malloc(100 * sizeof(char*));
 
 	// socket()
 	listenfd = socket(AF_INET, SOCK_STREAM, 0);

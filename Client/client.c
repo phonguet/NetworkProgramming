@@ -38,7 +38,7 @@ char * getListFile()
 	{
 		if(de->d_name[0] != '.')
 		{
-			temp = strcat(strcat(temp, " "), de->d_name);
+			temp = strcat(strcat(temp, de->d_name), " ");
 		}
 	}
 	closedir(d);
@@ -77,16 +77,17 @@ int main()
 		hostInfo.listFile = (char*) malloc(100 * sizeof(char *));
         printf("Host Name: ");
         scanf("%s", hostInfo.hostName);
-		temp = strcat(strcat(temp, "\rHost Name: "), hostInfo.hostName);
+		temp = strcat(strcat(temp, "\r"), hostInfo.hostName);
         printf("Host IP Address: ");
         scanf("%s", hostInfo.hostIPAddress);
-		temp = strcat(strcat(temp, "\nHost IP Address: "), hostInfo.hostIPAddress);
+		temp = strcat(strcat(temp, ","), hostInfo.hostIPAddress);
 		hostInfo.listFile = getListFile();
-		temp = strcat(strcat(temp, "\nList File: "), hostInfo.listFile);
+		temp = strcat(strcat(temp, ","), hostInfo.listFile);
 		int dataLength = strlen(temp);
-		//printf("%d\n", dataLength);
+		printf("%d\n", dataLength);
 		//write(sockfd, dataLength, sizeof(dataLength));
 		write(sockfd, temp, dataLength);
+		printf(temp);
     }
     
 	// while(1)
