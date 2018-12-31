@@ -1,0 +1,162 @@
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <unistd.h>
+#include <string.h>
+#include <sys/wait.h>
+#include <ctype.h>
+#include <signal.h>
+#include <errno.h>
+#include <stdlib.h>
+#include <pthread.h>
+// Cac include danh cho AF_INET
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
+// Neu khai bao bien mutex tai day thi se dem duoc tong so file ma server gui cho tat ca cac client
+// Bien mutex phai duoc khai bao truoc pthread
+int mutex = 0;
+
+pthread_mutex_t *mptr_nFile = PTHREAD_MUTEX_INITIALIZER;
+
+
+void *func(void *arg){
+
+    int client_sockfd;
+    int mutexClient = 0;
+    const char *KT = "QUIT";
+
+    client_sockfd = *((int*)arg);
+    free(arg);
+
+    //Xoa vung bo nho cua luong con ra khoi bo nho he thong sau khi ket thuc xu ly
+    pthread_detach(pthread_self());
+
+    // Doc du lieu va tra du lieu
+    char buffer[1024];
+    char newBuffer[1024];
+
+    while (read(client_sockfd, newBuffer, sizeof(newBuffer)) > 0){
+
+        // Neu khai bao bien mutex tai day thi se dem duoc tong so file ma server gui cho moi client
+//        int mutex = 0;
+        //Kiem tra ki tu gui vao co phai la QUIT khong
+        if (strcmp(buffer, KT) == 0) {
+//            printf("Chuyen xong tat ca %d file.\n", mutex);
+            break;
+        }
+
+        printf("Ten thu muc can download: %s\n", buffer);
+
+        // Gui lai file den Client
+
+        FILE *fp = fopen(newBuffer, "rb");
+        int size;
+        if(fp == NULL){
+            printf("File open ERROR\n");
+            size = 0;
+            write(client_sockfd, (void *) &size, sizeof(int));
+//                return 1;
+            continue;
+        }
+
+        printf("Dang gui file '%s'.\n", newBuffer);
+        fseek(fp, 0, SEEK_END);
+        size = ftell(fp);
+        fseek(fp, 0, SEEK_SET);
+        printf("Kich thuoc file: %d\n", size);
+        write(client_sockfd, (void *) &size, sizeof(int));
+
+        while (feof(fp) == 0){
+            int readSize = fread(buffer, 1, sizeof(buffer) - 1, fp);
+            write(client_sockfd, buffer, readSize);
+            bzero(buffer, sizeof(buffer));
+        }
+
+        printf("Da chuyen xong!\n");
+
+        //Phan moi
+
+        pthread_mutex_lock(&mptr_nFile);
+        mutex = mutex + 1;
+        mutexClient = mutexClient + 1;
+        pthread_mutex_unlock(&mptr_nFile);
+        printf("Chuyen xong tat ca %d file.\n", mutex);
+
+    }
+
+    printf("Client da thoat. \nChuyen xong %d file cho Client nay.\nTong so file da gui: %d. \nClient tiep theo. \n",mutexClient, mutex);
+//    printf("Client da thoat. \nClient tiep theo. \n", mutex);
+    close(client_sockfd);
+    return 0;
+
+}
+
+int main(){
+    int server_sockfd, *client_sockfd;
+    int server_len, client_len;
+    int port = 1098;
+    struct sockaddr_in server_address;
+    struct sockaddr_in client_address;
+
+
+    // Tao socket
+    server_sockfd = socket( AF_INET, SOCK_STREAM, 0 );
+    if (server_sockfd < 0) {
+		perror("Server socket error. \n");
+		return 1;
+	}
+
+    // Dat ten va gan dia chi cho socket theo giao thuc Internet
+
+    server_len = sizeof( server_address );
+    bzero(&server_address, server_len);
+    server_address.sin_family = AF_INET;
+    server_address.sin_addr.s_addr = htonl(INADDR_ANY);
+    server_address.sin_port = htons( port );
+
+    int bindCheck = bind( server_sockfd, (struct sockaddr *)&server_address, server_len );
+	if (bindCheck < 0) {
+		perror("Bind error. \n");
+		return 1;
+	}
+    // Tao hang doi va cho phep toi da 5 ket noi
+    int listenCheck = listen( server_sockfd, 5 );
+	if (listenCheck < 0) {
+		perror("Listen error");
+		return 1;
+	}
+	printf("Server dang cho tai cong:  %d\n", port);
+
+
+    // Cho va chap nhan ket noi
+    client_len = sizeof(client_address);
+//    signal(SIGCHLD, handler);
+    while(1){
+        client_sockfd = malloc(sizeof(int));
+        *client_sockfd = accept( server_sockfd, (struct sockaddr*)&client_address, &client_len );
+        if (client_sockfd < 0) {
+            if(errno == EINTR) continue;
+            else{
+                perror("Accept error \n");
+                return 1;
+            }
+        }
+
+
+        char *clientAddr = inet_ntoa(client_address.sin_addr);
+        int clientPort = ntohs(client_address.sin_port);
+
+        printf("Dia chi Client: %s: %d\n", clientAddr, clientPort);
+
+        // Phan moi
+
+        pthread_t tid;
+        pthread_create(&tid, NULL, &func, client_sockfd);
+
+    }
+
+    close(server_sockfd);
+    return 0;
+
+}
