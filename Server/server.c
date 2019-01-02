@@ -20,7 +20,9 @@ typedef struct HostInfo
 };
 
 static int countHost = 0;
-struct HostInfo * DATAHOST;
+static struct HostInfo DATAHOST[5];
+char * nullptr = NULL;
+//struct HostInfo * currentPtr;    // pointer at position current of DATAHOST
 
 void error(const char * msg)
 {
@@ -47,25 +49,37 @@ struct HostInfo getHostInfo(int sock)
 
 void responseToHost(int sock)
 {
-	struct HostInfo * data = DATAHOST;
 	char * listHost; // list host include file name download
-	char * fileName;
+	char * fileName = (char*) malloc(100 * sizeof(char*));
 	read(sock, fileName, sizeof(fileName));
-	printf("%s\n", fileName);
+	//printf("%s\n", fileName);
+
+	// return list host have file request
+	listHost = (char*) malloc(100 * sizeof(char*));
+	//printf("%s\n", DATAHOST[0].listFile);
+	//if(countHost==2) printf("%s\n", DATAHOST[1].listFile);
+	for(int i=0;i<countHost;i++)
+	{
+		printf("%s\n", DATAHOST[i].listFile);
+		if(strstr(DATAHOST[i].listFile, fileName) != nullptr)
+		{
+			listHost = strcat(listHost, DATAHOST[i].hostName);
+		}
+	}
+	printf("List Host: %s\n", listHost);
 }
 
 static void * doit(void * arg)
 {
     printf("\nThread ID: %d is created.\n", *(int*)arg);
-	countHost++;
     int connfd;
     connfd = *((int*)arg);
     free(arg);
     pthread_detach(pthread_self());
-	struct HostInfo hostInfo =  getHostInfo(connfd);
-	DATAHOST = &hostInfo;
-	printf("%s\n",DATAHOST->hostName);
-	*DATAHOST++;
+
+	struct HostInfo * hostInfo =  (struct HostInfo*)malloc(100 *sizeof(struct HostInfo*));
+	DATAHOST[countHost++] = getHostInfo(connfd);
+	printf("Length DATAHOST: %d\n",countHost);
 	responseToHost(connfd);
     close(connfd);
 	//countHost--;
