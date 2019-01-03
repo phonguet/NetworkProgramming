@@ -102,8 +102,32 @@ int main()
     else
     {
         printf("Connected Success !\n");
+	printf("You have some files:\n");
+
+	// Show cac file dang co trong thu muc
+	DIR *d;
+  	struct dirent *dir;
+ 	d = opendir(".");
+  	if (d) {
+    		while ((dir = readdir(d)) != NULL) {
+      			printf("%s\n", dir->d_name);
+    		}
+    		closedir(d);
+  	}
+
+	printf("Do you want to send it to Index Server?\n");
+	printf("Type 'y' if Yes, 'n' if No.\n ");
+	scanf("%s", &route_send);
+	if(strcmp(route_send, 'y')){
 		sendHostInfoToServer(sockfd);
+	}
+
+	printf("Do you want to download any file?\n");
+	printf("Type 'y' if Yes, 'n' if No.\n ");
+	scanf("%s", &route_down);
+	if(strcmp(route_down, 'y')){
 		downloadFile(sockfd);
+	}
     }
     
 	// while(1)
