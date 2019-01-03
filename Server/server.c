@@ -9,6 +9,9 @@
 #include<arpa/inet.h>       // htonl()
 #include<netinet/in.h>
 #include<pthread.h>
+#include<errno.h>
+#include<ctype.h>
+#include<sys/wait.h>
 //#include<libr/r_util/r_json.h>
 
 // Information of Host connected to server
@@ -75,6 +78,9 @@ static void * doit(void * arg)
     int connfd;
     connfd = *((int*)arg);
     free(arg);
+	
+// Xoa vung bo nho cua luong con ra khoi bo nho he thong 
+// sau khi ket thuc xu ly
     pthread_detach(pthread_self());
 
 	struct HostInfo * hostInfo =  (struct HostInfo*)malloc(100 *sizeof(struct HostInfo*));
@@ -89,6 +95,7 @@ static void * doit(void * arg)
 int main()
 {
     int listenfd;
+	int serv_len;
 	struct sockaddr_in serv_addr, cli_addr;
 	socklen_t cli_len;
 	pthread_t tid;
@@ -98,7 +105,8 @@ int main()
 	listenfd = socket(AF_INET, SOCK_STREAM, 0);
 	if(listenfd < 0)
 		error("Error Opening socket");
-	bzero((char*) &serv_addr, sizeof(serv_addr));
+	serv_len = sizeof(serv_addr);
+	bzero((char*) &serv_addr, serv_len);
 
 	// get socket opt
 	int optval = 1;	
@@ -109,7 +117,7 @@ int main()
 	serv_addr.sin_family = AF_INET;
 	serv_addr.sin_port = htons(9090);
 	serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-	if(bind(listenfd, (struct sockaddr*) &serv_addr, sizeof(serv_addr)) < 0)
+	if(bind(listenfd, (struct sockaddr*) &serv_addr, serv_len) < 0)
 		error("Error Binding Socket");
 
 	printf("Server is listening at port %d . . .\n", ntohs(serv_addr.sin_port));
