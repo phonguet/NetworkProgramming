@@ -101,43 +101,39 @@ int main()
 		error("Error Connecting");	
     else
     {
+		int route_send, route_down;
         printf("Connected Success !\n");
-		sendHostInfoToServer(sockfd);
-		downloadFile(sockfd);
+		printf("You have some files:\n");
+
+		// Show cac file dang co trong thu muc
+		DIR *d;
+  		struct dirent *dir;
+ 		d = opendir(".");
+  		if (d) {
+    		while ((dir = readdir(d)) != NULL) {
+      			printf("%s\n", dir->d_name);
+    		}
+    		closedir(d);
+  		}
+
+		printf("Do you want to send it to Index Server?\n");
+		printf("Type '1' if Yes, '0' if No.\n ");
+		scanf("%d", &route_send);
+		// printf("\n%d \n", route_send);
+		if(route_send == 1){
+			// printf("\n%d \n", route_send);
+			sendHostInfoToServer(sockfd);
+		}
+
+		printf("Do you want to download any file?\n");
+		printf("Type '1' if Yes, '0' if No.\n ");
+		scanf("%d", &route_down);
+		if(route_down == 1){
+			downloadFile(sockfd);
+		}
+		
     }
     
-	// while(1)
-	// {
-	// 	fprintf(stdout, "File name : ");
-	// 	fscanf(stdin, "%s", file_name);
-	// 	strcpy(buffer_sent, file_name);
-	// 	write(sockfd, buffer_sent, sizeof(buffer_sent));
-		
-	// 	if(strcmp(file_name, "QUIT") == 0)
-	// 		break;
-
-	// 	read(sockfd, &f_size, sizeof(f_size));
-	// 	if(f_size == 0)
-	// 	{
-	// 		printf("File Not Found\n");
-	// 		continue;
-	// 	}
-	// 	buffer_recv[strlen(buffer_recv)-1] = '\0';
-	// 	if(f_size > 0)
-	// 	{
-	// 			file = fopen(file_name,"wb");
-	// 			while(count < f_size)
-	// 			{
-	// 				int nbytes = read(sockfd, buffer_recv, sizeof(buffer_recv));
-	// 	 			fwrite(buffer_recv, 1, nbytes, file);
-	// 				count += nbytes;
-	// 	 		}
-	// 	 		fclose(file);
-	// 	 		count = 0;
-	// 	}
-	//}	
-
-	// close()
 	close(sockfd);
 	printf("\nClosed Connection !\n");
 	return 0;
