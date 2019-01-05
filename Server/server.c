@@ -1,18 +1,20 @@
 // Group Name : Nâu Nêm
 // BTL : Xây dựng ứng dụng chia sẻ file ngang hàng sử dụng mô hình lai
 
-#include<stdlib.h>
-#include<stdio.h>
-#include<string.h>
-#include<unistd.h>          // close(), read(), write()
-#include<sys/socket.h>      // socket(), bind(), listen(), accept()
-#include<arpa/inet.h>       // htonl()
-#include<netinet/in.h>
-#include<pthread.h>
-#include<errno.h>
-#include<ctype.h>
-#include<sys/wait.h>
-//#include<libr/r_util/r_json.h>
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <unistd.h>
+#include <string.h>
+#include <sys/wait.h>
+#include <ctype.h>
+#include <signal.h>
+#include <errno.h>
+#include <stdlib.h>
+#include <pthread.h>
+// Cac include danh cho AF_INET
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 // Information of Host connected to server
 typedef struct HostInfo
@@ -23,9 +25,7 @@ typedef struct HostInfo
 };
 
 static int countHost = 0;
-static struct HostInfo DATAHOST[5];
-char * nullptr = NULL;
-//struct HostInfo * currentPtr;    // pointer at position current of DATAHOST
+struct HostInfo * DATAHOST;
 
 void error(const char * msg)
 {
@@ -43,49 +43,38 @@ struct HostInfo getHostInfo(int sock)
 	char * dataHost = (char*) malloc(100 * sizeof(char *));
     bzero(buffer_recv, sizeof(buffer_recv));
 	read(sock, buffer_recv, sizeof(buffer_recv));
-	hostInfo.hostName = strtok(buffer_recv, ",");
-	hostInfo.hostIPAddress= strtok(NULL, ",");
-	hostInfo.listFile = strtok(NULL, ",");
-	printf("%s\n",hostInfo.listFile);
+	hostInfo.hostName = strtok(buffer_recv, ", ");
+	hostInfo.hostIPAddress= strtok(NULL, ", ");
+	hostInfo.listFile = strtok(NULL, ", ");
+	while(hostInfo.listFile != NULL && hostInfo.listFile != EOF ){
+		printf("\n%s",hostInfo.listFile);
+		hostInfo.listFile = strtok(NULL, ", ");
+	}
+	
 	return hostInfo;
 }
 
 void responseToHost(int sock)
 {
+	struct HostInfo * data = DATAHOST;
 	char * listHost; // list host include file name download
-	char * fileName = (char*) malloc(100 * sizeof(char*));
+	char * fileName;
 	read(sock, fileName, sizeof(fileName));
-	//printf("%s\n", fileName);
-
-	// return list host have file request
-	listHost = (char*) malloc(100 * sizeof(char*));
-	//printf("%s\n", DATAHOST[0].listFile);
-	//if(countHost==2) printf("%s\n", DATAHOST[1].listFile);
-	for(int i=0;i<countHost;i++)
-	{
-		printf("%s\n", DATAHOST[i].listFile);
-		if(strstr(DATAHOST[i].listFile, fileName) != nullptr)
-		{
-			listHost = strcat(listHost, DATAHOST[i].hostName);
-		}
-	}
-	printf("List Host: %s\n", listHost);
+	printf("%s\n", fileName);
 }
 
 static void * doit(void * arg)
 {
     printf("\nThread ID: %d is created.\n", *(int*)arg);
+	countHost++;
     int connfd;
     connfd = *((int*)arg);
     free(arg);
-	
-// Xoa vung bo nho cua luong con ra khoi bo nho he thong 
-// sau khi ket thuc xu ly
     pthread_detach(pthread_self());
-
-	struct HostInfo * hostInfo =  (struct HostInfo*)malloc(100 *sizeof(struct HostInfo*));
-	DATAHOST[countHost++] = getHostInfo(connfd);
-	printf("Length DATAHOST: %d\n",countHost);
+	struct HostInfo hostInfo =  getHostInfo(connfd);
+	DATAHOST = &hostInfo;
+	printf("%s\n",DATAHOST->hostName);
+	*DATAHOST++;
 	responseToHost(connfd);
     close(connfd);
 	//countHost--;
@@ -95,18 +84,16 @@ static void * doit(void * arg)
 int main()
 {
     int listenfd;
-	int serv_len;
 	struct sockaddr_in serv_addr, cli_addr;
 	socklen_t cli_len;
-	pthread_t tid;
 	int *iptr;
+	int port = 9090;
 
 	// socket()
 	listenfd = socket(AF_INET, SOCK_STREAM, 0);
 	if(listenfd < 0)
 		error("Error Opening socket");
-	serv_len = sizeof(serv_addr);
-	bzero((char*) &serv_addr, serv_len);
+	bzero((char*) &serv_addr, sizeof(serv_addr));
 
 	// get socket opt
 	int optval = 1;	
@@ -115,11 +102,13 @@ int main()
 
 	// bind()
 	serv_addr.sin_family = AF_INET;
-	serv_addr.sin_port = htons(9090);
+	serv_addr.sin_port = htons(port);
 	serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-	if(bind(listenfd, (struct sockaddr*) &serv_addr, serv_len) < 0)
-		error("Error Binding Socket");
-
+	int bindCheck = bind(listenfd, (struct sockaddr*) &serv_addr, sizeof(serv_addr));
+	if (bindCheck < 0) {
+		perror("Error Binding Socket. \n");
+		return 1;
+	}
 	printf("Server is listening at port %d . . .\n", ntohs(serv_addr.sin_port));
 	
 	// listen()
@@ -132,7 +121,8 @@ int main()
 		cli_len = sizeof(cli_addr);
 		iptr = (int*)malloc(100 * sizeof(int*));
 		*iptr =  accept(listenfd, (struct sockaddr *) &cli_addr, &cli_len);
-		pthread_create(&tid, NULL, &doit, (void*)iptr);
+		pthread_t tid;
+		pthread_create(&tid, NULL, &doit, iptr);
 	}
 	
 	// close()
