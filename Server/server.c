@@ -49,8 +49,8 @@ void getHostInfo(int sock)
 	hostInfo.listFile = strtok(NULL, ",");
 	printf("List file: %s\n",hostInfo.listFile);
 	//printf("Host Name: %s\n", hostInfo.hostName);
-	DATAHOST[countHost] = hostInfo;
-	printf("Host Name: %s\n", DATAHOST[countHost++].hostName);
+	DATAHOST[countHost++] = hostInfo;
+	//printf("Host Name: %s\n", DATAHOST[countHost++].hostName);
 	//printf("%p\n", &hostInfo[countHost]);
 }
 

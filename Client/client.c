@@ -88,7 +88,7 @@ void downloadFile(int sock)
 		char * hostName = (char*) malloc(100*sizeof(char*));
 		char * hostIPAddress = (char*) malloc(100*sizeof(char*));
 		read(sock, listHost, 1024);
-		printf("List Host: \n%s", listHost);
+		printf("List Host: %s", listHost);
 		printf("Input host name you want to download file: ");
 		scanf("%s", hostName);
 		printf("Host IP Address: ");
@@ -108,11 +108,12 @@ void downloadFile(int sock)
 
 		if(connect(recvSocket, (struct sockaddr*)&recvSocket_addr, recvSocket_len))
 			error("Error Connecting");
-		write(sendSocket, hostName, sizeof(hostName));
+		write(sendSocket, hostName, strlen(hostName));
 		char * temp = malloc(100*sizeof(char*));
 		read(recvSocket, &temp, sizeof(temp));
 		printf("%s\n", temp);
-		//downloadFile(sock);
+		downloadFile(sock);
+
 	}
 }
 
@@ -126,9 +127,9 @@ void initSendSocket()
 	bzero((char*) &sendSocket_addr, sendSocket_len);
 
 	// set sendSocket opt
-	//int optval = 1;
-	//if((setsockopt(sendSocket, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval))) < 0)
-	//	error("Error Set Opt SendSocket\n");
+	int optval = 1;
+	if((setsockopt(sendSocket, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval))) < 0)
+		error("Error Set Opt SendSocket\n");
 
 	// bind() sendSocket
 	sendSocket_addr.sin_family = AF_INET;
@@ -141,6 +142,12 @@ void initSendSocket()
 	if(listen(sendSocket, 5) < 0)
 		error("Error Listening Socket\n");
 }
+
+// void sendFile(int sock)
+// {
+// 	FILE * file;
+// 	file = fopen(fileName, "rb");
+// }
 
 int main()
 {
