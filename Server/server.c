@@ -39,14 +39,18 @@ void error(const char * msg)
 struct HostInfo getHostInfo(int sock)
 {
 	struct HostInfo hostInfo;
-    char buffer_recv[8192];
+   	char buffer_recv[8192];
 	char * dataHost = (char*) malloc(100 * sizeof(char *));
-    bzero(buffer_recv, sizeof(buffer_recv));
+    	bzero(buffer_recv, sizeof(buffer_recv));
 	read(sock, buffer_recv, sizeof(buffer_recv));
-	hostInfo.hostName = strtok(buffer_recv, ",");
-	hostInfo.hostIPAddress= strtok(NULL, ",");
-	hostInfo.listFile = strtok(NULL, ",");
-	printf("%s\n",hostInfo.listFile);
+	hostInfo.hostName = strtok(buffer_recv, ", ");
+	hostInfo.hostIPAddress= strtok(NULL, ", ");
+	hostInfo.listFile = strtok(NULL, ", ");
+	while(hostInfo.listFile != NULL && hostInfo.listFile != EOF ){
+		printf("\n%s",hostInfo.listFile);
+		hostInfo.listFile = strtok(NULL, ", ");
+	}
+	
 	return hostInfo;
 }
 
