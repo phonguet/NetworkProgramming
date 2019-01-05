@@ -11,7 +11,7 @@
 #include<sys/types.h>
 #include<dirent.h>
 
-char * fileName ;
+char * fileName;
 
 void error(const char * msg)
 {
@@ -25,6 +25,11 @@ typedef struct HostInfo
     char * hostIPAddress;
     char * listFile;
 };
+
+struct HostInfo hostInfo;
+int sendSocket, recvSocket;
+struct sockaddr_in sendSocket_addr, recvSocket_addr;
+socklen_t sendSocket_len, recvSocket_len;
 
 char * getListFile()
 {
@@ -49,7 +54,6 @@ char * getListFile()
 
 void sendHostInfoToServer(int sock)
 {
-	struct HostInfo hostInfo;
     char * temp = (char*) malloc(100 * sizeof(char *));     // hostInfo Data
 	hostInfo.hostName = (char*) malloc(100 * sizeof(char *));
 	hostInfo.hostIPAddress = (char*) malloc(100 * sizeof(char *));
@@ -74,6 +78,68 @@ void downloadFile(int sock)
 	printf("Input file name to download: ");
 	scanf("%s", fileName);
 	write(sock, fileName, sizeof(fileName));
+	if(strcmp(fileName, "QUIT") == 0)
+	{
+		close(sock);
+	}
+	else
+	{
+		char * listHost = (char*) malloc(100*sizeof(char*));
+		char * hostName = (char*) malloc(100*sizeof(char*));
+		char * hostIPAddress = (char*) malloc(100*sizeof(char*));
+		read(sock, listHost, 1024);
+		printf("List Host: \n%s", listHost);
+		printf("Input host name you want to download file: ");
+		scanf("%s", hostName);
+		printf("Host IP Address: ");
+		scanf("%s", hostIPAddress);
+
+		// recvSocket()
+		recvSocket = socket(AF_INET, SOCK_STREAM, 0);
+		if(recvSocket < 0)
+			error("Error Opening RecvSocket\n");
+		struct sockaddr_in recvSocket_addr;
+		socklen_t recvSocket_len = sizeof(recvSocket_addr);
+		bzero(&recvSocket_addr, recvSocket_len);
+
+		recvSocket_addr.sin_family = AF_INET;
+		recvSocket_addr.sin_port = htons(1234);
+		recvSocket_addr.sin_addr.s_addr = inet_addr(hostIPAddress);
+
+		if(connect(recvSocket, (struct sockaddr*)&recvSocket_addr, recvSocket_len))
+			error("Error Connecting");
+		write(sendSocket, hostName, sizeof(hostName));
+		char * temp = malloc(100*sizeof(char*));
+		read(recvSocket, &temp, sizeof(temp));
+		printf("%s\n", temp);
+		//downloadFile(sock);
+	}
+}
+
+void initSendSocket()
+{
+	// sendSocket()
+	sendSocket = socket(AF_INET, SOCK_STREAM, 0);
+	if(sendSocket < 0)
+		error("Error Opening sendSocket\n");
+	sendSocket_len = sizeof(sendSocket_addr);
+	bzero((char*) &sendSocket_addr, sendSocket_len);
+
+	// set sendSocket opt
+	//int optval = 1;
+	//if((setsockopt(sendSocket, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval))) < 0)
+	//	error("Error Set Opt SendSocket\n");
+
+	// bind() sendSocket
+	sendSocket_addr.sin_family = AF_INET;
+	sendSocket_addr.sin_port = htons(1234);
+	sendSocket_addr.sin_addr.s_addr = htonl(INADDR_ANY);//inet_addr(hostInfo.hostIPAddress);
+	if(bind(sendSocket, (struct sockaddr*)&sendSocket_addr, sendSocket_len) < 0)
+		error("Error Binding SendSocket");
+	
+	// listen() sendSocket
+	if(listen(sendSocket, 5) < 0)
+		error("Error Listening Socket\n");
 }
 
 int main()
@@ -85,7 +151,7 @@ int main()
     // socket()
 	sockfd = socket(AF_INET, SOCK_STREAM, 0);
 	if(sockfd < 0)
-		error("Error Openning Socket");
+		error("Error Openning Socket\n");
 	bzero(&serv_addr, sizeof(serv_addr));
 
 	// connect()
@@ -95,7 +161,7 @@ int main()
 
 	serv_addr.sin_family = AF_INET;
 	serv_addr.sin_port = htons(9090);
-	serv_addr.sin_addr.s_addr = inet_addr(serv_IPAddr);
+	serv_addr.sin_addr.s_addr = inet_addr(serv_IPAddr);	
 
 	if((connfd = connect(sockfd, (struct sockaddr*) &serv_addr, sizeof(serv_addr))) < 0)
 		error("Error Connecting");	
@@ -103,39 +169,9 @@ int main()
     {
         printf("Connected Success !\n");
 		sendHostInfoToServer(sockfd);
+		initSendSocket();
 		downloadFile(sockfd);
     }
-    
-	// while(1)
-	// {
-	// 	fprintf(stdout, "File name : ");
-	// 	fscanf(stdin, "%s", file_name);
-	// 	strcpy(buffer_sent, file_name);
-	// 	write(sockfd, buffer_sent, sizeof(buffer_sent));
-		
-	// 	if(strcmp(file_name, "QUIT") == 0)
-	// 		break;
-
-	// 	read(sockfd, &f_size, sizeof(f_size));
-	// 	if(f_size == 0)
-	// 	{
-	// 		printf("File Not Found\n");
-	// 		continue;
-	// 	}
-	// 	buffer_recv[strlen(buffer_recv)-1] = '\0';
-	// 	if(f_size > 0)
-	// 	{
-	// 			file = fopen(file_name,"wb");
-	// 			while(count < f_size)
-	// 			{
-	// 				int nbytes = read(sockfd, buffer_recv, sizeof(buffer_recv));
-	// 	 			fwrite(buffer_recv, 1, nbytes, file);
-	// 				count += nbytes;
-	// 	 		}
-	// 	 		fclose(file);
-	// 	 		count = 0;
-	// 	}
-	//}	
 
 	// close()
 	close(sockfd);

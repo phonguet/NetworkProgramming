@@ -14,6 +14,8 @@
 #include<sys/wait.h>
 //#include<libr/r_util/r_json.h>
 
+#define MAX_HOST 10
+
 // Information of Host connected to server
 typedef struct HostInfo
 {
@@ -23,9 +25,8 @@ typedef struct HostInfo
 };
 
 static int countHost = 0;
-static struct HostInfo DATAHOST[5];
+struct HostInfo DATAHOST[MAX_HOST];
 char * nullptr = NULL;
-//struct HostInfo * currentPtr;    // pointer at position current of DATAHOST
 
 void error(const char * msg)
 {
@@ -36,7 +37,7 @@ void error(const char * msg)
 // server có 1 socket lắng nghe, mỗi khi client kết nối đến thì
 // server sẽ tạo ra 1 luồng để xử lí yêu cầu của client
 
-struct HostInfo getHostInfo(int sock)
+void getHostInfo(int sock)
 {
 	struct HostInfo hostInfo;
     char buffer_recv[8192];
@@ -46,30 +47,34 @@ struct HostInfo getHostInfo(int sock)
 	hostInfo.hostName = strtok(buffer_recv, ",");
 	hostInfo.hostIPAddress= strtok(NULL, ",");
 	hostInfo.listFile = strtok(NULL, ",");
-	printf("%s\n",hostInfo.listFile);
-	return hostInfo;
+	printf("List file: %s\n",hostInfo.listFile);
+	//printf("Host Name: %s\n", hostInfo.hostName);
+	DATAHOST[countHost] = hostInfo;
+	printf("Host Name: %s\n", DATAHOST[countHost++].hostName);
+	//printf("%p\n", &hostInfo[countHost]);
 }
 
 void responseToHost(int sock)
 {
-	char * listHost; // list host include file name download
 	char * fileName = (char*) malloc(100 * sizeof(char*));
 	read(sock, fileName, sizeof(fileName));
-	//printf("%s\n", fileName);
+	if(strcmp(fileName, "QUIT") == 0)
+		close(sock);
+
+	char * listHost = NULL;
+	listHost = (char*) malloc(100 * sizeof(char*)); // list host include file name download
 
 	// return list host have file request
-	listHost = (char*) malloc(100 * sizeof(char*));
-	//printf("%s\n", DATAHOST[0].listFile);
-	//if(countHost==2) printf("%s\n", DATAHOST[1].listFile);
 	for(int i=0;i<countHost;i++)
 	{
-		printf("%s\n", DATAHOST[i].listFile);
 		if(strstr(DATAHOST[i].listFile, fileName) != nullptr)
 		{
-			listHost = strcat(listHost, DATAHOST[i].hostName);
+			listHost = strcat(strcat(listHost, "\n"), DATAHOST[i].hostName);
 		}
 	}
-	printf("List Host: %s\n", listHost);
+
+	//printf("ListHost: %s\n", listHost);
+	write(sock, listHost, strlen(listHost));
 }
 
 static void * doit(void * arg)
@@ -78,13 +83,15 @@ static void * doit(void * arg)
     int connfd;
     connfd = *((int*)arg);
     free(arg);
-	
-// Xoa vung bo nho cua luong con ra khoi bo nho he thong 
-// sau khi ket thuc xu ly
-    pthread_detach(pthread_self());
 
-	struct HostInfo * hostInfo =  (struct HostInfo*)malloc(100 *sizeof(struct HostInfo*));
-	DATAHOST[countHost++] = getHostInfo(connfd);
+	// Xoa vung bo nho cua luong con ra khoi he thong
+	// sau khi ket thuc xu ly
+    pthread_detach(pthread_self());
+	getHostInfo(connfd);
+	// for(int i=0;i<countHost;i++)
+	// {
+	// 	printf("%s\n", DATAHOST[i].hostName);
+	// }
 	printf("Length DATAHOST: %d\n",countHost);
 	responseToHost(connfd);
     close(connfd);
@@ -95,11 +102,11 @@ static void * doit(void * arg)
 int main()
 {
     int listenfd;
-	int serv_len;
 	struct sockaddr_in serv_addr, cli_addr;
 	socklen_t cli_len;
 	pthread_t tid;
 	int *iptr;
+	int serv_len;
 
 	// socket()
 	listenfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -108,10 +115,10 @@ int main()
 	serv_len = sizeof(serv_addr);
 	bzero((char*) &serv_addr, serv_len);
 
-	// get socket opt
+	// set socket opt
 	int optval = 1;	
 	if(setsockopt(listenfd, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval)) < 0)
-		error("Get OptSocket Error");
+		error("Set OptSocket Error");
 
 	// bind()
 	serv_addr.sin_family = AF_INET;
