@@ -24,11 +24,13 @@ struct Client{
 
 struct Client client[100];
 
+//Gui thong bao chap nhan
 void sendAccept(int *fd) {
     int message = 1;
     write(*fd, &message, sizeof(message));
 }
 
+//Nhan danh sach ca file co trong EndHost dang ket noi
 void recvlistFile(int *fd) {
     int n_bytes;
     int nFile, fileLen;
@@ -38,8 +40,9 @@ void recvlistFile(int *fd) {
 
     read(*fd,&port,sizeof(port));
     printf("Ket noi voi End Host tai cong: %ld\n",port);
-    int flag = 1;
+    int L = 1;
     for(int i=0; i<numberClient; i++){
+        // Neu client do da tung gui danh sach cho Server
         if(client[i].port==port){
             n_bytes = read(*fd, &nFile, sizeof(int));
             printf("So file hien co : %d\n", nFile);
@@ -50,14 +53,16 @@ void recvlistFile(int *fd) {
                 n_bytes = read(*fd, &client[i].listFile[j], fileNameLength);
                 client[i].listFile[j][n_bytes]=0;
                 n_bytes = read(*fd, &fileSize, sizeof(fileSize));
-                printf("File: %s :\t %d bytes.\n", client[i].listFile[j], client[i].listFileSize);
+                printf("  %s \n", client[i].listFile[j]);
                 client[i].listFileSize[j]=fileSize;
             }
-            flag = 0;
+            L = 0;
             break;
         }
     }
-    if(flag==1){
+
+    // Neu la End Host moi
+    if(L==1){
         client[numberClient-1].port=port;
         n_bytes = read(*fd, &nFile, sizeof(int));
         printf("So file hien co : %d\n", nFile);
@@ -74,33 +79,34 @@ void recvlistFile(int *fd) {
     }
 }
 
+//Nhan yeu cau tai file tu Client
 void recvRequest(int *fd){
     int fileNameLength;
     char fileName[100];
     int numberRightClient=0;
     int listIP[100];
-    int port[100];
+    long port[100];
     long fileSize;
+
     read(*fd,&fileNameLength,sizeof(fileNameLength));
     read(*fd,&fileName,fileNameLength);
     fileName[fileNameLength]=0;
-    // printf("file name length: %d",fileNameLength);
     printf("\nEnd Host muon down load file: %s\n",fileName);
     for(int i=0;i<numberClient;i++){
-        printf("Danh sach file:\n");
+        printf("\nDanh sach file:\n");
         for(int j=0;j<client[i].numberFile;j++){
-            printf("%s\n",client[i].listFile[j]);
+            // printf("%s\n",client[i].listFile[j]);
             if(strcmp(fileName,client[i].listFile[j])==0){
                 numberRightClient++;
                 listIP[numberRightClient-1]=client[i].IpAddr;
                 port[numberRightClient-1]=client[i].port;
-                printf("port: %d %d\n",i,port[numberRightClient]);
                 fileSize=client[i].listFileSize[j];
                 break;
             }
         }
     }
     if(numberRightClient>0){
+        //Goi tin xac nhan ton tai la goi so 4
         int type = 4;
         write(*fd,&type,sizeof(type));
         write(*fd,&fileSize,sizeof(fileSize));
@@ -110,6 +116,7 @@ void recvRequest(int *fd){
             write(*fd,&port[i],sizeof(port[i]));
         }
     }else{
+        // Goi tin thong bao loi laf so 7
         int type = 7;
         int errorCode = 1;
         write(*fd,&type,sizeof(type));
@@ -123,32 +130,25 @@ void * process(void * file_description) {
 
     sendAccept(&fd);
 
-
-
     while(n_bytes = read(fd, &message, sizeof(int))>0){
-    printf("new message, type = %d\n", message);
-    if (message == -1 || n_bytes==0) {
-        printf("Khong the ket noi voi EndHost. \n");
-        return NULL;
-    }  else
-    if (message == 2) {
-        printf("client want to send list file\n");
-
-        recvlistFile(&fd);
-        sendAccept(&fd);
-    } else
-    if (message == 6){
-        // printf("Message : %d\n", message);
-        recvRequest(&fd);
-    } else {
-        // printf("Message : %d\n", message);
-    }
+        if (message == -1 || n_bytes==0) {
+            printf("\nKhong the ket noi voi EndHost. \n");
+            return NULL;
+        }  else
+        if (message == 2) {
+            printf("\nEnd Host cap nhat list files.\n");
+            recvlistFile(&fd);
+            sendAccept(&fd);
+        } else
+        if (message == 6){
+            recvRequest(&fd);
+        } else {
+        }
     }
 
     if(n_bytes==0){
-        printf("one client has closed!\n");
+        printf("\nA client has closed!\n");
     }
-
 
     return NULL;
 }
@@ -156,14 +156,14 @@ void * process(void * file_description) {
 int main(int argc, char **argv) {
     int server_sockfd;
     int *client_sockfd;
-    int PORT = 1098;
+    int PORT = 10988;
     struct sockaddr_in server_addr;
     struct sockaddr_in client_addr;
 
      // Tao socket
     server_sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (server_sockfd < 0) {
-		perror("Server socket error. \n");
+		perror("\nServer socket error. \n");
 		return 1;
 	}
 
@@ -176,17 +176,17 @@ int main(int argc, char **argv) {
 
     int bindCheck = bind(server_sockfd, (struct sockaddr*) &server_addr, sizeof(server_addr));
     if (bindCheck < 0) {
-		perror("Bind error. \n");
+		perror("\nBind error. \n");
 		return 1;
 	}
 
     // Tao hang doi va cho phep toi da 100 ket noi
     int listenCheck = listen( server_sockfd, 100 );
 	if (listenCheck < 0) {
-		perror("Listen error");
+		perror("\nListen error");
 		return 1;
 	}
-    printf("Index Server dang cho tai cong:  %d\n", PORT);
+    printf("\nIndex Server dang cho tai cong:  %d......\n", PORT);
 
     socklen_t client_len;
     pthread_t tid;
@@ -196,11 +196,10 @@ int main(int argc, char **argv) {
         client_len= sizeof(client_addr);
         *client_sockfd = accept(server_sockfd, (struct sockaddr*) &client_addr, &client_len);
 
-        printf("\nREQUEST FROM %s PORT %d \n",inet_ntop(AF_INET,&client_addr.sin_addr,str,sizeof(str)),htons(client_addr.sin_port));
+        printf("\nEnd Host from %s : %d \n\n",inet_ntop(AF_INET,&client_addr.sin_addr,str,sizeof(str)),htons(client_addr.sin_port));
         numberClient++;
         client[numberClient-1].IpAddr=client_addr.sin_addr.s_addr;
         pthread_create(&tid, NULL, &process, (void *) client_sockfd);
-
     }
 
     return 0;
